@@ -57,7 +57,6 @@ load.CityBound <- read.socrata("https://data.cityofgainesville.org/resource/wubr
 
 # 311 Input & Icons
 request_types <- read.socrata("https://data.cityofgainesville.org/Community-Model/311-Service-Requests-myGNV-/78uv-94ar")
-str(request_types)
 status_types <- c("Acknowleged", "Open", "Archived")
 requests311 <- unique(request_types$request_type)
 
@@ -142,13 +141,43 @@ icons_violations <- awesomeIconList(
 )
 
 # Arrests Input & Icons
-crime_cat <- c("Violent", "Property", "Drug-Related")
+crime_cat <- c("Violent", "Property", "Drug-Related", "Miscellaneous")
 offenses <- read.socrata("https://data.cityofgainesville.org/resource/gvua-xt9q.json")
 crime_ind <- unique(offenses$narrative)
+
+violentcrime <- c("Domestic Simple Battery", "Battery (simple)", "Dating Violence Simple Battery", "Domestic Battery by Strangulation",
+                  "Assault (simple)", "Robbery", "Robbery by Sudden Snatching", "Dating Violence Aggravated Assault", "Domestic Aggravated Battery",
+                  "Assault (aggravated)", "Robbery (strong Arm)", "Battery (felony)", "Battery (aggravated)", "Domestic Aggravated Assualt", "Assault (police Officer
+                  Aggravated)", "Robbery (armed)", "Homicide", "Dating Violence Aggravated Battery by Strangulation", "Battery on a Person 65 Yoa or Older",
+                  "Battery (simple - With Other Weapon)", "Shooting/throwing a Deadly Missile Into a Dwelling/vehicle", "Robbery (home Invasion)", "Battery (police Officer)", 
+                  "Battery on a School Board Employee", "Dating Violence Aggravated Battery", "Battery on a Emergency Medicalcare Provider", "Dating Violence Felony Battery", "Domestic Assault"
+                  , "Att Homicide", "Battery (police Officer Aggravated", "Battery on Detention or Commitment Facility Staff (simple)", 
+                  "Robbery (carjacking)", "Battery (security Guard/officer)", "Battery (security Guard/officer Aggravated)"
+                  )
+propertycrime <- c("Damage to Property", "Theft Grand - From Building", "Burglary to Conveyance", "Theft Petit - From Vehicle/not Parts",
+                  "Theft Petit - Retail", "Theft Petit - Other", "Stolen Vehicle (auto)", "Theft Petit - Bicycle", "Stolen Vehicle (truck)",
+                  "Burglary to Residence", "Theft Grand - Retail", "Arson", "Theft Grand - Trailer", "Theft Petit - From Building", "Damage to City Property",
+                  "Burglary to Buisness", "Theft Grand - Bicycle", "Theft Grand - From Vehicle (not Parts)", "Theft Petit - Pocket-picking", "Stolen Vehicle (other)",
+                  "Theft Petit - From Vehicle (vehicle Parts)", "Stolen Vehicle (motorcycle)", "Burglary to a Structure", "Theft Grand - From Vehicle (vehicle Parts)",
+                  "Trash Dumping", "Stolen Property (selling/distributing)", "Theft Petit - From Vending Machine", "Theft Grand - Pocket-picking", 
+                  "Stolen Property (possession/conceal)", "Theft Petit - Purse Snatching", "Stolen Property (buying/receiving)", "Theft Grand - From Vending Machine",
+                  "Theft Grand - Purse Snatching", "Theft Petit - Trailer", "Theft Grand - Value 300 to 4,999")
+drugcrimes <- c("Drug Violation (sid)", "Drug Violation", "Drug Poss. of Controlled Substance", "Drug Violation (using)", "Drug Violation (selling)", "Drug Equip/paraphernalia",
+                "Possession of Less Than 20g of Cannabis", "Drug Violation (buying)")
+
+#function to filter crime types
+
+crime_type <- offenses %>% mutate(crimetype = case_when(offenses$narrative %in% violentcrime == TRUE ~ "Violent",
+                                                        offenses$narrative %in% propertycrime == TRUE ~ "Property",
+                                                        offenses$narrative %in% drugcrimes == TRUE ~ "Drug-Related",
+                                                        offenses$narrative %in% violentcrime == FALSE & offenses$narrative %in% propertycrime == FALSE & offenses$narrative %in% drugcrimes == FALSE ~ "Miscellaneous"
+))
+
 crime <- awesomeIconList(
   violent <- makeAwesomeIcon('fingerprint', library = 'fa', markerColor = 'darkblue', iconColor = 'F2665E', spin = TRUE), 
   property <- makeAwesomeIcon('house-damage', library = 'fa', markerColor = 'darkblue', iconColor = 'F2665E', spin = TRUE),
-  drugs <- makeAwesomeIcon('cannabis', library = 'fa', markerColor = 'darkblue', iconColor = 'F2665E', spin = TRUE)
+  drugs <- makeAwesomeIcon('cannabis', library = 'fa', markerColor = 'darkblue', iconColor = 'F2665E', spin = TRUE),
+  misc <- makeAwesomeIcon('user-secret', library = 'fa', markerColor = 'darkblue', iconColor = 'F2665E', spin = TRUE)
 )
 
 #Fire Hydrants
@@ -160,7 +189,6 @@ Cap_Projects <- read.socrata("https://data.cityofgainesville.org/resource/qrmq-g
 icon_cproj <- makeAwesomeIcon('hard-hat', library = 'fa', markerColor = 'lightgrey', iconColor = 'FACE00', spin = TRUE)
 
 # Collisions
-crash_types <- c("Bicycle", "Pedestrian", "Cars", "Motorcycles", "Mopeds", "Bus", "Fatality")
 ta <- read.socrata("https://data.cityofgainesville.org/resource/iecn-3sxx.json")
 taccidents <- ta %>% mutate(casetype = case_when(ta$totalfatalities > 0 ~ "Fatality",
   ta$numberofpedestrians > 0 & ta$totalfatalities == 0 & ta$numberofbicyclesinvolved == 0 ~ "Pedestrian",
@@ -294,7 +322,7 @@ ui <- ui <- function(request) {
                                                          #outer {margin-top: 5px !important; position: absolute;}
                                                          .btn.collapsed {display: in-line !important;}
                                                        }"),
-             # Generate Map
+             # Generate Map - Replace Background image
              div(class="mapBack", style='position: absolute;
                                                       background-image: url("loading.png");
                                                       background-repeat: no-repeat;
@@ -324,7 +352,8 @@ ui <- ui <- function(request) {
                                         label = NULL,
                                         start = Sys.Date()-10,
                                         end = Sys.Date(),
-                                        min = as.Date("2004-01-01"),
+                                        #Ask About Proper Start Date
+                                        min = as.Date("2000-01-01"),
                                         max = Sys.Date() + 30,
                                         startview = "day"),
                          tags$br(),
@@ -372,6 +401,17 @@ ui <- ui <- function(request) {
                                      c('Accident Type'='', crashtype),
                                      multiple = TRUE, 
                                      selectize = TRUE),
+                         selectInput("dow_select",
+                                     label = NULL,
+                                     c(`Day of the Week` = '', c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")),
+                                     multiple = TRUE,
+                                     selectize = TRUE),
+                         sliderInput("times",
+                                     label = "Collision Time (24-hour clock)",
+                                     min = 0,
+                                     max = 24,
+                                     value = c(0,24),
+                                     step = 1),
                          # Building Permits
                            HTML('<font color="#67688C">'),
                            checkboxInput("togglePermits",
@@ -410,60 +450,18 @@ ui <- ui <- function(request) {
                                      c(`Business Type`='', business_types),
                                      multiple = TRUE,
                                      selectize=TRUE),
-                         HTML('<font color="#F9C13D">'),
-                         checkboxInput("toggleCrashes",
-                                       label = "Traffic Collisions",
-                                       value = FALSE),
-                         HTML('</font>'),
-                         selectInput("dow_select",
-                                     label = NULL,
-                                     c(`Day of the Week` = '', c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")),
-                                     multiple = TRUE,
-                                     selectize = TRUE),
-                         sliderInput("times",
-                                     label = "Collision Time (24-hour clock)",
-                                     min = 0,
-                                     max = 24,
-                                     value = c(0,24),
-                                     step = 1),
+                         HTML('<font>'), 
                          selectInput("basemap_select",
                                      label = "Basemap",
-                                     choices = c(`OSM Mapnik` = "OpenStreetMap.Mapnik", `Code for Gainesville` = "mapStack", `OSM France` = "OpenStreetMap.France", `OSM Humanitarian` = "OpenStreetMap.HOT", `Stamen Toner` = "Stamen.Toner", `Esri Satellite` = "Esri.WorldImagery", Esri = "Esri.WorldStreetMap", `OSM Dark Matter` = "CartoDB.DarkMatter", `OSM Positron` = "CartoDB.Positron"),
+                                     choices = c(`OSM Mapnik` = "OpenStreetMap.Mapnik", `Gainesville mapStack` = "mapStack", `OSM France` = "OpenStreetMap.France", `OSM Humanitarian` = "OpenStreetMap.HOT", `Stamen Toner` = "Stamen.Toner", `Esri Satellite` = "Esri.WorldImagery", Esri = "Esri.WorldStreetMap", `OSM Dark Matter` = "CartoDB.DarkMatter", `OSM Positron` = "CartoDB.Positron"),
                                      selected = "OpenStreetMap.Mapnik"),
 
                          # Conditional Filter Panels
-                         conditionalPanel("input.filter_select == 'Neighborhood'",
-                                          selectInput("hood_select",
-                                                      label = NULL,
-                                                      c(`Neighborhood`='', levels(load.hoods$hood)),
-                                                      multiple = TRUE,
-                                                      selectize=TRUE)
-                         ),
-                         conditionalPanel("input.filter_select == 'Public Works Division'",
-                                          selectInput("DPW_select",
-                                                      label = NULL,
-                                                      c(`Public Works Division`='', levels(load.dpw$PUBLIC_WORKS_DIVISION)),
-                                                      multiple = TRUE,
-                                                      selectize=TRUE)
-                         ),
-                         conditionalPanel("input.filter_select == 'Police Zone'",
-                                          selectInput("zone_select",
-                                                      label = NULL,
-                                                      c(`Police Zone`='', levels(load.zones$POLICE_ZONE)),
-                                                      multiple = TRUE,
-                                                      selectize=TRUE)
-                         ),
+               
                          conditionalPanel("input.filter_select == 'Council District'",
                                           selectInput("council_select",
                                                       label = NULL,
-                                                      c(`Council District`='', levels(load.council$COUNCIL_DISTRICT)),
-                                                      multiple = TRUE,
-                                                      selectize=TRUE)
-                         ),
-                         conditionalPanel("input.filter_select == 'Fire Zone'",
-                                          selectInput("firez_select",
-                                                      label = NULL,
-                                                      c(`Fire Zone`='', levels(load.firez$dist_zone)),
+                                                      c(`Council District`='', levels(load.ComDist$districtid)),
                                                       multiple = TRUE,
                                                       selectize=TRUE)
                          ),
@@ -471,16 +469,16 @@ ui <- ui <- function(request) {
                )
              )
   )
-  tabPanel(a("Places", href="https://pittsburghpa.shinyapps.io/BurghsEyeViewPlaces/", style = "padding-top: 0px;
-                          padding-bottom: 0px; bottom: 19; top: -19; bottom: 19px")),
-  tabPanel(a("Parcels", href="https://pittsburghpa.shinyapps.io/BurghsEyeViewParcels/", style = "padding-top: 0px; padding-bottom: 0px; bottom: 19; top: -19; bottom: 19px")),
-  tabPanel('Data: Points', class = "Data: Points", value = "Data: Points",
+  #tabPanel(a("Places", href="https://pittsburghpa.shinyapps.io/BurghsEyeViewPlaces/", style = "padding-top: 0px;
+   #                       padding-bottom: 0px; bottom: 19; top: -19; bottom: 19px")),
+  #tabPanel(a("Parcels", href="https://pittsburghpa.shinyapps.io/BurghsEyeViewParcels/", style = "padding-top: 0px; padding-bottom: 0px; bottom: 19; top: -19; bottom: 19px")),
+ #link panel to Open Data Portal, Do we want Export Functionality?
+   tabPanel('Data: Points', class = "Data: Points", value = "Data: Points",
            # Select Dataset for Export
            inputPanel(
              selectInput("report_select", 
                          tagList(shiny::icon("map-marker"), "Select Layer:"),
-                         choices = c("311 Requests", "Arrests", "Blotter", "Capital Projects", "Code Violations", "Collisions", "Fire Incidents", "Non-Traffic Citations", "Right of Way Permits"), #  , "Building Permits"
-                         selected= "311 Requests"),
+                         choices = c("311 Requests", "Crime", "Capital Projects", "Code Violations", "Traffic Accidents", "Fire Hydrant Locations", "Active Businesses"),
              # Define Button Position
              uiOutput("buttonStyle")
            ),
